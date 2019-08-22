@@ -164,6 +164,16 @@ class AssessmentTemplate(assessment.AuditRelationship,
   _custom_publish = {
       'audit': audit.build_audit_stub,
   }
+  DFT_ASSIGNEE_VERIFIERS = ("Object Admins",
+                            "Audit Captain",
+                            "Auditors",
+                            "Principal Assignees",
+                            "Secondary Assignees",
+                            "Primary Contacts",
+                            "Secondary Contacts",
+                            "Other Contacts",
+                            "[email]"
+                            )
 
   _aliases = {
       "status": {
@@ -175,21 +185,17 @@ class AssessmentTemplate(assessment.AuditRelationship,
           "display_name": "Default Assignees",
           "mandatory": True,
           "filter_by": "_nop_filter",
-          "description": _hint_verifier_assignees(
-              _DEFAULT_PEOPLE_LABELS_ACTUAL,
-              _DEFAULT_PEOPLE_LABELS_CONTROL,
-              _DEFAULT_PEOPLE_LABELS_RISK,
-          )
+          "description": "Allowed values are:\n{}".format('\n'.join(
+              DFT_ASSIGNEE_VERIFIERS
+          ))
       },
       "default_verifier": {
           "display_name": "Default Verifiers",
           "mandatory": False,
           "filter_by": "_nop_filter",
-          "description": _hint_verifier_assignees(
-              _DEFAULT_PEOPLE_LABELS_ACTUAL,
-              _DEFAULT_PEOPLE_LABELS_CONTROL,
-              _DEFAULT_PEOPLE_LABELS_RISK,
-          )
+          "description": "Allowed values are:\n{}".format('\n'.join(
+              DFT_ASSIGNEE_VERIFIERS
+          ))
       },
       "procedure_description": {
           "display_name": "Default Assessment Procedure",
