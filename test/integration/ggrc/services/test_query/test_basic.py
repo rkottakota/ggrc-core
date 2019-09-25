@@ -10,23 +10,21 @@ import random
 import unittest
 from datetime import datetime
 from operator import itemgetter
-import mock
-
 import ddt
 import freezegun
-from flask import json
+import mock
 
-from ggrc import app
+
+from flask import json
 from ggrc import db
 from ggrc import models
+from ggrc.fulltext.attributes import DateValue
 from ggrc.models import CustomAttributeDefinition as CAD, all_models
 from ggrc.models.mixins.synchronizable import Synchronizable
 from ggrc.snapshotter.rules import Types
-from ggrc.fulltext.attributes import DateValue
-
 from integration.ggrc import TestCase, generator
-from integration.ggrc.query_helper import WithQueryApi
 from integration.ggrc.models import factories
+from integration.ggrc.query_helper import WithQueryApi
 
 
 # to be moved into converters.query_helper
@@ -39,17 +37,32 @@ DATE_FORMAT_RESPONSE = "%Y-%m-%d"
 class TestAdvancedQueryAPI(WithQueryApi, TestCase):
   """Basic tests for /query api."""
 
-  @classmethod
-  def setUpClass(cls):
-    """Set up test cases for all tests."""
-    TestCase.clear_data()
-    # This imported file could be simplified a bit to speed up testing.
-    cls.response = cls._import_file("data_for_export_testing.csv")
-
   def setUp(self):
+    TestCase.clear_data()
     self.client.get("/login")
+    self.users = []
+    self.test_user_names = ["Turing",
+                            "Alan",
+                            "Smurfette",
+                            "Terminator",
+                            "Rosy",
+                            "Lilly"]
+    self.programs = []
+
+    for username in self.test_user_names:
+      self.users.append(factories.PersonFactory(
+          name=username, email="{}@example.com".format(username.lower())))
+    for number in range(23):
+      self.programs.append(
+          factories.ProgramFactory(title="Cat ipsum {}".format(number),
+                                   start_date=datetime(2016, 8, number + 1),
+                                   notes="cat" if number > 2 else ""))
+      self.programs[number].add_person_with_role_name(
+          self.users[number % 6], "Program Managers")
+      self.programs[number].add_person_with_role_name(
+          self.users[(number + 1) % 6], "Primary Contacts")
+
     self.generator = generator.ObjectGenerator()
-    self._check_csv_response(self.response, {})
 
   def test_basic_query_eq(self):
     """Filter by = operator."""
@@ -107,14 +120,14 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_basic_query_lt(self):
     """Filter by < operator."""
-    date = datetime(2015, 5, 18)
+    date = datetime(2016, 8, 10)
+
     programs = self._get_first_result_set(
         self._make_query_dict("Program",
                               expression=["effective date", "<",
                                           date.strftime(DATE_FORMAT_REQUEST)]),
         "Program",
     )
-
     self.assertEqual(programs["count"], 9)
     self.assertEqual(len(programs["values"]), programs["count"])
     self.assertTrue(
@@ -125,7 +138,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_basic_query_gt(self):
     """Filter by > operator."""
-    date = datetime(2015, 5, 18)
+    date = datetime(2016, 8, 10)
     programs = self._get_first_result_set(
         self._make_query_dict("Program",
                               expression=["effective date", ">",
@@ -187,7 +200,12 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_basic_query_text_search(self):
     """Filter by fulltext search."""
-    text_pattern = "ea"
+    [factories.RegulationFactory(title=title, notes=notes, description=desc)
+     for title, notes, desc in (('t01r', 'n01', 'd01'),
+                                ('t02r', 'n02-qq1', 'd02'),
+                                ('t11r', 'n11', 'd11'),
+                                )]
+    text_pattern = "d0"
     data = self._make_query_dict("Regulation")
     data["filters"]["expression"] = {
         "op": {"name": "text_search"},
@@ -195,7 +213,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
     }
     regulations = self._get_first_result_set(data, "Regulation")
 
-    self.assertEqual(regulations["count"], 21)
+    self.assertEqual(regulations["count"], 2)
     self.assertEqual(len(regulations["values"]), regulations["count"])
     self.assertTrue(all((regulation["description"] and
                          text_pattern in regulation["description"]) or
@@ -236,6 +254,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_query_limit(self):
     """The limit parameter trims the result set."""
+
     def make_query_dict(limit=None):
       """A shortcut for making queries with different limits."""
       return self._make_query_dict("Program", order_by=[{"name": "title"}],
@@ -341,6 +360,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_query_order_by(self):
     """Results get sorted by own field."""
+
     # assumes unique title
 
     def get_titles(programs):
@@ -376,6 +396,12 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_order_by_several_fields(self):
     """Results get sorted by two fields at once."""
+    [factories.RegulationFactory(title=title, notes=notes,
+                                 description=desc)
+     for title, notes, desc in (('t01r', 'n01', 'd01'),
+                                ('t02r', 'n02-qq1', 'd02'),
+                                ('t11r', 'n11', 'd11'),
+                                )]
     regulations = self._get_first_result_set(
         self._make_query_dict("Regulation",
                               order_by=[{"name": "notes", "desc": True},
@@ -399,6 +425,9 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
   def test_order_by_related_titled(self):
     """Results get sorted by title of related Titled object."""
+    for number in range(1, len(self.programs) + 1):
+      factories.AuditFactory(program=self.programs[number - 1],
+                             title="Audit{}".format(number))
     audits_title = self._get_first_result_set(
         self._make_query_dict("Audit",
                               order_by=[{"name": "program"}, {"name": "id"}]),
@@ -428,6 +457,9 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
   def test_query_order_by_owners(self):
     """Results get sorted by name or email of the (first) owner."""
     # TODO: the test data set lacks objects with several owners
+    for each in range(6):
+      policy = factories.PolicyFactory(title="Policy{}".format(each + 1))
+      policy.add_person_with_role_name(self.users[each], "Admin")
     policies_owner = self._get_first_result_set(
         self._make_query_dict("Policy",
                               order_by=[{"name": "Admin"}, {"name": "id"}]),
@@ -473,7 +505,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
         factories.SystemFactory(network_zone=option)
 
     systems_unordered = self._get_first_result_set(
-        self._make_query_dict("System",),
+        self._make_query_dict("System", ),
         "System", "values"
     )
     systems_ordered_1 = self._get_first_result_set(
@@ -534,7 +566,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
         "Person",
     )
     user_list = [p['email'] for p in people["values"]]
-    ref_list = [u'smotko@example.com', u'sec.con@example.com']
+    ref_list = [u'alan@example.com', u'smurfette@example.com']
     self.assertItemsEqual(user_list, ref_list)
 
   def test_filter_risk_by_vulnerability(self):
@@ -555,7 +587,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
   def test_order_control_by_key_control(self):
     """Test correct ordering and by SIGNIFICANCE field"""
     controls_unordered = self._get_first_result_set(
-        self._make_query_dict("Control",),
+        self._make_query_dict("Control", ),
         "Control", "values"
     )
     controls_ordered_1 = self._get_first_result_set(
@@ -591,7 +623,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
   def test_order_control_by_fraud_related(self):
     """Test correct ordering and by fraud_related field"""
     controls_unordered = self._get_first_result_set(
-        self._make_query_dict("Control",),
+        self._make_query_dict("Control", ),
         "Control", "values"
     )
 
@@ -631,7 +663,7 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
         factories.ControlFactory(**{key: '["{}"]'.format(val)})
 
     controls_unordered = self._get_first_result_set(
-        self._make_query_dict("Control",),
+        self._make_query_dict("Control", ),
         "Control",
         "values"
     )
@@ -690,7 +722,6 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
 
     with factories.single_commit():
       object_ids = [object_factory().id for _ in range(number_of_objects)]
-
     # Check that objects has been created correctly.
     created_objects_count = object_class.query.filter(
         object_class.id.in_(object_ids)
@@ -781,8 +812,8 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
                               expression=["notes", "is", "empty"]),
         "Program",
     )
-    self.assertEqual(programs["count"], 1)
-    self.assertEqual(set([u'Cat ipsum 1']),
+    self.assertEqual(programs["count"], 3)
+    self.assertEqual(set([u'Cat ipsum 0'], [u'Cat ipsum 1'], [u'Cat ipsum 2']),
                      set([program["title"] for program
                           in programs["values"]]))
 
@@ -914,7 +945,8 @@ class TestAdvancedQueryAPI(WithQueryApi, TestCase):
                   resource_type=relevant_obj.type
               ).first().id,
           )
-        factories.RelationshipFactory(source=base_obj, destination=related_obj)
+        factories.RelationshipFactory(source=base_obj,
+                                      destination=related_obj)
 
         query_data.append(self._make_query_dict(
             relevant_obj.type,
@@ -1078,6 +1110,7 @@ class TestQueryAssessmentCA(TestCase, WithQueryApi):
 
 class TestSortingQuery(TestCase, WithQueryApi):
   """Test sorting is correct requested with query API"""
+
   def setUp(self):
     super(TestSortingQuery, self).setUp()
     self.client.get("/login")
@@ -1174,25 +1207,48 @@ class TestSortingQuery(TestCase, WithQueryApi):
 
 class TestQueryAssessmentByEvidenceURL(TestCase, WithQueryApi):
   """Test assessments filtering by Evidence and/or URL"""
+
   def setUp(self):
     super(TestQueryAssessmentByEvidenceURL, self).setUp()
-    response = self._import_file("assessment_full_no_warnings.csv")
-    self._check_csv_response(response, {})
+    # response = self._import_file("assessment_full_no_warnings.csv")
+    # self._check_csv_response(response, {})
     self.client.get("/login")
+    self.users = []
+    self.test_user_names = ["Turing",
+                            "Alan",
+                            "Smurfette",
+                            "Terminator",
+                            "Rosy",
+                            "Lilly"]
+
+    for username in self.test_user_names:
+      self.users.append(factories.PersonFactory(
+          name=username, email="{}@example.com".format(username.lower())))
 
   def test_query_evidence_url(self):
     """Test assessments query filtered by Evidence"""
+    with factories.single_commit():
+      for i in range(len(self.users)):
+        assessment = factories.AssessmentFactory(
+            title="assessment{}".format(i))
+        if i < 4:
+          evidence = factories.EvidenceUrlFactory(
+              link='http://i.imgur.com/Lppr34{}.jpg'.format(
+                  i if i % 2 else 5))
+
+          factories.RelationshipFactory(source=assessment,
+                                        destination=evidence)
     assessments_by_evidence = self._get_first_result_set(
         self._make_query_dict(
             "Assessment",
-            expression=["Evidence Url", "~", "Lppr347.jpg"],
+            expression=["Evidence Url", "~", "Lppr345.jpg"],
         ),
         "Assessment", "values",
     )
 
     self.assertEqual(len(assessments_by_evidence), 2)
     self.assertItemsEqual([asmt["title"] for asmt in assessments_by_evidence],
-                          ["Assessment title 1", "Assessment title 3"])
+                          ["assessment0", "assessment2"])
 
     assessments_by_url = self._get_first_result_set(
         self._make_query_dict(
@@ -1202,11 +1258,12 @@ class TestQueryAssessmentByEvidenceURL(TestCase, WithQueryApi):
         "Assessment", "values",
     )
 
-    self.assertEqual(len(assessments_by_url), 3)
+    self.assertEqual(len(assessments_by_url), 4)
     self.assertItemsEqual([asmt["title"] for asmt in assessments_by_url],
-                          ["Assessment title 1",
-                           "Assessment title 3",
-                           "Assessment title 4"])
+                          ["assessment0",
+                           "assessment1",
+                           "assessment2",
+                           "assessment3"])
 
 
 class TestQueryWithCA(TestCase, WithQueryApi):
@@ -1214,27 +1271,48 @@ class TestQueryWithCA(TestCase, WithQueryApi):
 
   def setUp(self):
     super(TestQueryWithCA, self).setUp()
-    self._generate_cad()
-    self.import_file("sorting_with_ca_setup.csv")
     self.client.get("/login")
-
-  @staticmethod
-  def _generate_cad():
-    """Generate custom attribute definitions."""
-    factories.CustomAttributeDefinitionFactory(
+    self.dropdowns = ("one", "two", "three", "four", "five", "six")
+    self.program_titles = ("A", "B", "C", "D", "E", "F")
+    self.text = ("L", "M", "N")
+    self.cadd = factories.CustomAttributeDefinitionFactory(
         title="CA dropdown",
         definition_type="program",
-        multi_choice_options="one,two,three,four,five",
+        multi_choice_options=','.join(self.dropdowns),
     )
-    factories.CustomAttributeDefinitionFactory(
+    self.cat = factories.CustomAttributeDefinitionFactory(
         title="CA text",
         definition_type="program",
     )
-    factories.CustomAttributeDefinitionFactory(
+    self.cad = factories.CustomAttributeDefinitionFactory(
         title="CA date",
         definition_type="program",
         attribute_type="Date",
     )
+
+    with factories.single_commit():
+      for number in range(6):
+        program = factories.ProgramFactory(title=self.program_titles[number])
+        factories.CustomAttributeValueFactory(
+            attributable=program,
+            custom_attribute=self.cadd,
+            attribute_value=self.dropdowns[number]
+        )
+        factories.CustomAttributeValueFactory(
+            attributable=program,
+            custom_attribute=self.cat,
+            attribute_value=self.text[int(number / 2)]
+        )
+        self.dates = (number, number + 1, number % 2) \
+            if number % 2 == 0 else (3, 8, 1)
+        factories.CustomAttributeValueFactory(
+            attributable=program,
+            custom_attribute=self.cad,
+            attribute_value="201{}-0{}-{}9".format(
+                self.dates[0], self.dates[1], self.dates[2])
+        )
+
+    # self.import_file("sorting_with_ca_setup.csv")
 
   @staticmethod
   def _flatten_cav(data):
@@ -1262,6 +1340,7 @@ class TestQueryWithCA(TestCase, WithQueryApi):
     )
 
     keys = [program["title"] for program in programs]
+
     self.assertEqual(keys, sorted(keys))
 
     programs = self._get_first_result_set(
@@ -1271,6 +1350,7 @@ class TestQueryWithCA(TestCase, WithQueryApi):
     )
 
     keys = [program["CA text"] for program in programs]
+
     self.assertEqual(keys, sorted(keys))
 
   def test_mixed_ca_sorting(self):
@@ -1311,7 +1391,7 @@ class TestQueryWithCA(TestCase, WithQueryApi):
 
   def test_ca_query_eq(self):
     """Test CA date fields filtering by = operator."""
-    date = datetime(2015, 5, 18)
+    date = datetime(2013, 8, 19)
     programs = self._get_first_result_set(
         self._make_query_dict("Program",
                               expression=["ca date", "=",
@@ -1319,12 +1399,12 @@ class TestQueryWithCA(TestCase, WithQueryApi):
         "Program", "values",
     )
     titles = [prog["title"] for prog in programs]
-    self.assertItemsEqual(titles, ("F", "H", "J", "B", "D"))
-    self.assertEqual(len(programs), 5)
+    self.assertItemsEqual(titles, ("B", "D", "F"))
+    self.assertEqual(len(programs), 3)
 
   def test_ca_query_lt(self):
     """Test CA date fields filtering by < operator."""
-    date = datetime(2015, 5, 18)
+    date = datetime(2013, 8, 19)
     programs = self._get_first_result_set(
         self._make_query_dict("Program",
                               expression=["ca date", "<",
@@ -1332,12 +1412,12 @@ class TestQueryWithCA(TestCase, WithQueryApi):
         "Program", "values",
     )
     titles = [prog["title"] for prog in programs]
-    self.assertItemsEqual(titles, ("G", "I"))
+    self.assertItemsEqual(titles, ("A", "C"))
     self.assertEqual(len(programs), 2)
 
   def test_ca_query_gt(self):
     """Test CA date fields filtering by > operator."""
-    date = datetime(2015, 5, 18)
+    date = datetime(2013, 8, 19)
     programs = self._get_first_result_set(
         self._make_query_dict("Program",
                               expression=["ca date", ">",
@@ -1345,8 +1425,8 @@ class TestQueryWithCA(TestCase, WithQueryApi):
         "Program", "values",
     )
     titles = [prog["title"] for prog in programs]
-    self.assertItemsEqual(titles, ("A", "C", "E"))
-    self.assertEqual(len(programs), 3)
+    self.assertItemsEqual(titles, ("E",))
+    self.assertEqual(len(programs), 1)
 
   # pylint: disable=invalid-name
   def test_ca_query_incorrect_date_format(self):
@@ -1369,31 +1449,6 @@ class TestQueryWithUnicode(TestCase, WithQueryApi):
   # pylint: disable=anomalous-backslash-in-string
   CAD_TITLE3 = u"АС\ЫЦУМПА"  # definitely did not work
 
-  @classmethod
-  def setUpClass(cls):
-    """Set up test cases for all tests."""
-    TestCase.clear_data()
-    cls._generate_cad()
-    cls.response = cls._import_file("querying_with_unicode.csv")
-
-  @classmethod
-  def _generate_cad(cls):
-    """Generate custom attribute definitions."""
-    with app.app.app_context():
-      factories.CustomAttributeDefinitionFactory(
-          title=cls.CAD_TITLE1,
-          definition_type="program",
-          multi_choice_options=u"один,два,три,четыре,пять",
-      )
-      factories.CustomAttributeDefinitionFactory(
-          title=cls.CAD_TITLE2,
-          definition_type="program",
-      )
-      factories.CustomAttributeDefinitionFactory(
-          title=cls.CAD_TITLE3,
-          definition_type="program",
-      )
-
   @staticmethod
   def _flatten_cav(data):
     """Unpack CAVs and put them in data as object attributes."""
@@ -1404,8 +1459,54 @@ class TestQueryWithUnicode(TestCase, WithQueryApi):
     return data
 
   def setUp(self):
+    TestCase.clear_data()
     self.client.get("/login")
-    self._check_csv_response(self.response, {})
+    # self._check_csv_response(self.response, {})
+    self.program_titles = (u"программа F",
+                           u"программа G",
+                           u"программа J",
+                           u"программа A",
+                           u"программа B",
+                           u"программа C")
+    self.cad1 = factories.CustomAttributeDefinitionFactory(
+        title=self.CAD_TITLE1,
+        definition_type="program",
+        multi_choice_options=u"один,два,три,четыре,пять",
+    )
+    self.cad2 = factories.CustomAttributeDefinitionFactory(
+        title=self.CAD_TITLE2,
+        definition_type="program",
+    )
+    self.cad3 = factories.CustomAttributeDefinitionFactory(
+        title=self.CAD_TITLE3,
+        definition_type="program",
+    )
+    self.cad_data = ((u"B текст", u"один"),
+                     (u"B текст", u"два"),
+                     (u"D текст", u"три"),
+                     (u"D текст", u"четыре"),
+                     (u"E текст", u"один"),
+                     (u"E текст", u"два"),
+                     )
+    with factories.single_commit():
+      for number in range(6):
+        program = factories.ProgramFactory(title=self.program_titles[number])
+        if not number:
+          factories.CustomAttributeValueFactory(
+              attributable=program,
+              custom_attribute=self.cad3,
+              attribute_value=u"Ы текст"
+          )
+        factories.CustomAttributeValueFactory(
+            attributable=program,
+            custom_attribute=self.cad2,
+            attribute_value=self.cad_data[number][0]
+        )
+        factories.CustomAttributeValueFactory(
+            attributable=program,
+            custom_attribute=self.cad1,
+            attribute_value=self.cad_data[number][1]
+        )
 
   @ddt.data(
       ("title", u"программа A"),
