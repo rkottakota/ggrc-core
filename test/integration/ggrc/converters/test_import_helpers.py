@@ -411,6 +411,7 @@ class TestGetObjectColumnDefinitions(TestCase):
         },
         "unique": {
             "Title",
+            "Code",
         },
     }
     self._test_single_object(all_models.Audit, names, expected_fields)

@@ -51,7 +51,7 @@ class Audit(Snapshotable,
   """Audit model."""
 
   __tablename__ = 'audits'
-  _slug_uniqueness = False
+  _slug_uniqueness = True
 
   VALID_STATES = (
       u'Planned', u'In Progress', u'Manager Review',
