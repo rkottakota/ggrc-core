@@ -13,6 +13,7 @@ from ggrc.converters import get_exportables
 from ggrc.integrations import constants
 from ggrc.models import inflector, all_models
 from ggrc.models.reflection import AttributeInfo
+from ggrc.snapshotter.rules import Types
 from integration.ggrc import TestCase
 from integration.ggrc.models import factories
 
@@ -82,6 +83,7 @@ class TestExportEmptyTemplate(TestCase):
                            "Issue Type"]
 
   def setUp(self):
+    super(TestExportEmptyTemplate, self).setUp()
     self.client.get("/login")
     self.headers = {
         'Content-Type': 'application/json',
@@ -165,6 +167,23 @@ class TestExportEmptyTemplate(TestCase):
     response = self.client.post("/_service/export_csv",
                                 data=dumps(data), headers=self.headers)
     self.assertIn("Included LCAD", response.data)
+    self.assertIn("Allowed values are emails", response.data)
+
+  @ddt.data(*(Types.all - Types.external))
+  def test_global_attr_people(self, model):
+    """Test if global CA of people type has hint for {} ."""
+    with factories.single_commit():
+      factories.AccessControlRoleFactory(
+          name="ACL_read", object_type=model, read=True
+      )
+    data = {
+        "export_to": "csv",
+        "objects": [{"object_name": model, "fields": "all"}]
+    }
+
+    response = self.client.post("/_service/export_csv",
+                                data=dumps(data), headers=self.headers)
+    self.assertIn("ACL_read", response.data)
     self.assertIn("Allowed values are emails", response.data)
 
   def test_basic_policy_template(self):

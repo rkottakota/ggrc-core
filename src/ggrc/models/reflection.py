@@ -335,9 +335,12 @@ class AttributeInfo(object):
           AccessControlRole.object_type,
           AccessControlRole.name,
           AccessControlRole.mandatory,
+          AccessControlRole.non_editable
       ).filter(~AccessControlRole.internal)
-      for object_type, name, mandatory in names_query:
-        flask.g.acl_role_names[object_type].add((name, mandatory))
+      for object_type, name, mandatory, non_editable in names_query:
+        flask.g.acl_role_names[object_type].add((name,
+                                                 mandatory,
+                                                 non_editable))
 
     return {
         u"{}:{}".format(cls.ALIASES_PREFIX, name): {
@@ -345,11 +348,14 @@ class AttributeInfo(object):
             "attr_name": name,
             "mandatory": mandatory,
             "unique": False,
-            "description": u"Multiple values are allowed.\nDelimiter is"
-                           u" 'line break'.\nAllowed values are emails",
             "type": cls.Type.AC_ROLE,
+            "description": u"Multiple values are allowed.\nDelimiter is"
+                           u" 'line break'.\nAllowed values are emails"
+                           if non_editable else
+                           u"Allowed values are emails",
         }
-        for name, mandatory in flask.g.acl_role_names[object_class.__name__]
+        for name, mandatory, non_editable
+        in flask.g.acl_role_names[object_class.__name__]
     }
 
   @classmethod
