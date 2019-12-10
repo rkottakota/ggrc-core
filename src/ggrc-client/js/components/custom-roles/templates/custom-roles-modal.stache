@@ -36,7 +36,7 @@
               data-placement="bottom"
             {{/showGroupTooltip}}
             >
-              <div {{^required}}class="hidable"{{/required}}>
+              <div  {{^required}}class="span hidable"{{/required}}>
                 <deletable-people-group
                   showEmptyMessage:from="false"
                   required:from="required"
@@ -57,6 +57,9 @@
                       <small><em>You can add only one person for this role</em></small>
                     </div>
                   {{/if}}
+                  {{^required}}
+                           <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
+                  {{/required}}
                 </deletable-people-group>
                 <div>
                   {{#if isUpdating}}

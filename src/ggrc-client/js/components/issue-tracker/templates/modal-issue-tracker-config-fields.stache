@@ -2,12 +2,15 @@
   Copyright (C) 2020 Google Inc.
   Licensed under http://www.apache.org/licenses/LICENSE-2.0 <see LICENSE file>
 }}
-
-<div class="ggrc-form-item">
+<div class="row-fluid">
+<div class="ggrc-form-item span3 hidable ">
   <div class="ggrc-form-item__row">
     <label class="ggrc-form-item__label">
       Ticket Tracker
     </label>
+    {{^instance.issue_tracker.enabled}}
+      <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
+    {{/instance.issue_tracker.enabled}}
     <div class="ggrc-form-item__note">
       <span class="issue-tracker__note">Turns on Ticket Tracker integration.</span>
     </div>
@@ -31,13 +34,15 @@
     </div>
   </div>
 </div>
-
+</div>
 {{#if instance.issue_tracker.enabled}}
+  <div class="row-fluid">
   <div class="ggrc-form-item">
-    <div class="ggrc-form-item__multiple-row">
+    <div class="ggrc-form-item__multiple-row span3 hidable">
       <label class="ggrc-form-item__label">
         Hotlist ID
       </label>
+      <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
       <numberbox-component
                  additionalClass:from="'input-block-level'"
                  placeholder:from="'Enter Hotlist ID'"
@@ -67,24 +72,28 @@
       </div>
     </div>
   </div>
-
+  </div>
+  <div class="row-fluid">
   <div class="ggrc-form-item">
-    <div class="ggrc-form-item__multiple-row">
+    <div class="ggrc-form-item__multiple-row span3 hidable">
       <label class="ggrc-form-item__label">
         Ticket Priority
       </label>
+      <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
       <dropdown-component optionsList:from="instance.constructor.issue_tracker_priorities"
                 name:bind="instance.issue_tracker.issue_priority">
       </dropdown-component>
     </div>
-    <div class="ggrc-form-item__multiple-row">
+    <div class="ggrc-form-item__multiple-row span3 hidable">
       <label class="ggrc-form-item__label">
         Ticket Severity
       </label>
+      <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
       <dropdown-component instance:from="instance"
                 optionsList:from="instance.constructor.issue_tracker_severities"
                 name:bind="instance.issue_tracker.issue_severity">
       </dropdown-component>
     </div>
+  </div>
   </div>
 {{/if}}

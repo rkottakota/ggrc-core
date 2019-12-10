@@ -34,11 +34,13 @@
       </div>
     </div>
 
-    <div class="ggrc-form-item">
+    <div class="ggrc-form-item hidable">
       <div class="ggrc-form-item__row">
+      <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
         <label class="ggrc-form-item__label">
           Description
         </label>
+
         <div class="rich-text">
           <rich-text
             tabindex="2"

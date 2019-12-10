@@ -69,7 +69,7 @@
     <div class="row-fluid">
       <div class="span12 hide-wrap">
         <access-control-list-roles-helper
-          instance:from="{.}"
+          instance:from="instance"
           isNewInstance:from="new_object_form">
         </access-control-list-roles-helper>
       </div>
@@ -93,7 +93,7 @@
 
         </div>
 
-        <div class="span6 hide-wrap hidable">
+        <div class="span4 hide-wrap hidable">
           <div class="row-fluid inner-hide">
             <div class="span12 hidable">
               <div class="objective-selector {{#instance.computed_errors.audit_firm}}field-failure{{/instance.computed_errors.audit_firm}}">
@@ -108,7 +108,7 @@
                     pathToField:from="'audit_firm.title'">
                     <input
                       type="text"
-                      class="span8 search-icon"
+                      class="span search-icon"
                       name="{{pathToField}}"
                       value="{{loadedObject.title}}"
                       data-lookup="OrgGroup"
@@ -175,7 +175,7 @@
     </div>
 
     <div class="row-fluid">
-      <div class="span3 hidable top-space">
+      <div class="span2 hidable top-space">
           <ggrc-gdrive-folder-picker instance:from="instance" deferred:from="true" tabindex="13"></ggrc-gdrive-folder-picker>
       </div>
       <div class="span3 hidable top-space bottom-space">
@@ -196,12 +196,12 @@
               isDisabled:from="isLoading"
               on:createUrl="markDocumentForAddition(scope.event.payload)"
               on:removeUrl="markDocumentForDeletion(scope.event.payload)">
-              <label>
-                Evidence URL
-                <i class="fa fa-question-circle" rel="tooltip" title="Web links to other references."></i>
-                <spinner-component toggle:from="isDisabled"></spinner-component>
+              <label class="related-urls-style">
+                              Evidence URL
+                              <i class="fa fa-question-circle" rel="tooltip" title="Web links to other references."></i>
+                              <spinner-component toggle:from="isDisabled"></spinner-component>
               </label>
-              <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
+              <a href="javascript://" class="field-hide-related-urls field-hide" tabindex="-1">hide</a>
             </related-urls>
           </related-documents>
         </deferred-mapper>
@@ -237,19 +237,6 @@
 
     {{#if instance.can_use_issue_tracker}}
       <div class="expanded-area">
-        <div class="expand-link">
-          <a class="show-hidden-fields info-show-hide active" href="javascript://">
-            <span class="out">
-              <i class="fa fa-caret-right"></i>
-              SHOW
-            </span>
-            <span class="in">
-              <i class="fa fa-caret-down"></i>
-              HIDE
-            </span>
-            TICKET TRACKER INFO
-          </a>
-        </div>
         <div class="hidden-fields-area">
           <div class="ggrc-form">
             <issue-tracker-switcher

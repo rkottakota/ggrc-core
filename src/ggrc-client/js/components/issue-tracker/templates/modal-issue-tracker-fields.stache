@@ -2,9 +2,13 @@
   Copyright (C) 2020 Google Inc.
   Licensed under http://www.apache.org/licenses/LICENSE-2.0 <see LICENSE file>
 }}
-
-<div class="ggrc-form-item">
+<div class="row-fluid">
+<div class="ggrc-form-item hidable">
   <div class="ggrc-form-item__row {{^isValidAttr instance "issue_tracker.enabled"}}field-failure{{/isValidAttr}}">
+  <div class="ggrc-form-item__row">
+  {{^instance.issue_tracker.enabled}}
+            <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
+      {{/instance.issue_tracker.enabled}}
     <label class="ggrc-form-item__label">
       Ticket Tracker
       {{#if_instance_of instance 'Assessment'}}
@@ -15,6 +19,7 @@
         {{/if}}
       {{/if_instance_of}}
     </label>
+    </div>
     <div class="ggrc-form-item__note">
       <span class="issue-tracker__note">{{{note}}}</span>
       {{#if instance.issueCreated}}
@@ -61,8 +66,10 @@
     {{/if}}
   </div>
 </div>
+</div>
 
 {{#if displayFields}}
+ <div class="row-fluid">
   <div class="ggrc-form-item">
     <div class="ggrc-form-item__row {{^isValidAttr instance "issue_tracker.issue_id"}}field-failure{{/isValidAttr}}">
       <label class="ggrc-form-item__label">
@@ -101,10 +108,11 @@
 
   {{^eq currentState state.LINK_TO_EXISTING}}
     <div class="ggrc-form-item">
-      <div class="ggrc-form-item__multiple-row">
+      <div class="ggrc-form-item__multiple-row span3 hidable">
         <label class="ggrc-form-item__label">
           Hotlist ID
         </label>
+        <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
         {{#eq currentState state.GENERATE_NEW}}
           <numberbox-component
             additionalClass:from="'input-block-level'"
@@ -144,20 +152,22 @@
         </div>
       </div>
     </div>
-
+ <div class="row-fluid">
     <div class="ggrc-form-item">
-      <div class="ggrc-form-item__multiple-row">
+      <div class="ggrc-form-item__multiple-row span3 hidable">
         <label class="ggrc-form-item__label">
           Ticket Priority
         </label>
+        <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
         <dropdown-component optionsList:from="instance.constructor.issue_tracker_priorities"
                   name:bind="instance.issue_tracker.issue_priority">
         </dropdown-component>
       </div>
-      <div class="ggrc-form-item__multiple-row">
+      <div class="ggrc-form-item__multiple-row span3 hidable">
         <label class="ggrc-form-item__label">
           Ticket Severity
         </label>
+        <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
         <dropdown-component instance:from="instance"
                   optionsList:from="instance.constructor.issue_tracker_severities"
                   name:bind="instance.issue_tracker.issue_severity">
@@ -179,5 +189,6 @@
         {{/validateAttr}}
       </div>
     </div>
+     </div>
   {{/eq}}
 {{/if}}

@@ -36,10 +36,13 @@
           </dropdown-component>
         </assessment-object-type-dropdown>
       </div>
-      <div class="ggrc-form-item__multiple-row multi-select-label-container">
-        <label class="form-label ggrc-form-item__label">
-          Label
-        </label>
+      <div class="ggrc-form-item__multiple-row multi-select-label-container hidable">
+        <div class="row-fluid">
+          <label class="form-label ggrc-form-item__label span8">
+            Label
+          </label>
+          <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
+        </div>
         <multi-select-label onlyEditMode:from="true"
                             instance:from="instance"
                             labels:from="instance.labels">
@@ -69,11 +72,14 @@
       </div>
     </div>
 
-    <div class="ggrc-form-item">
+    <div class="ggrc-form-item hidable">
       <div class="ggrc-form-item__row">
-        <label class="ggrc-form-item__label">
+      <div class="row-fluid">
+        <label class="ggrc-form-item__label span6">
           Assessment Procedure
         </label>
+        <a href="javascript://" class="field-hide" tabindex="-1">hide</a>
+      </div>
         <rich-text tabindex="3"
             hiddenToolbar:from="true"
             placeholder:from="'Enter Assessment Procedure'"
@@ -83,7 +89,7 @@
     </div>
 
     <div class="ggrc-form-item width-100">
-      <div class="ggrc-form-item__row">
+      <div class="ggrc-form-item__row span3">
       <assessment-people instance:from="instance"
                           infoPaneMode:from="false"
                           isNewInstance:from="new_object_form">
@@ -233,19 +239,6 @@
 
     {{#if instance.can_use_issue_tracker}}
       <div class="additional-fields">
-        <div class="expand-issue-tracker-link">
-          <a class="show-hidden-fields info-show-hide active" href="javascript://">
-            <span class="out">
-              <i class="fa fa-caret-right"></i>
-              SHOW
-            </span>
-            <span class="in">
-              <i class="fa fa-caret-down"></i>
-              HIDE
-            </span>
-            TICKET TRACKER INFO
-          </a>
-        </div>
         <div class="hidden-issue-tracker-fields-area">
           <issue-tracker-switcher
             setIssueTitle:from="true"
